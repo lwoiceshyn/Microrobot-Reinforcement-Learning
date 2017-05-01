@@ -11,7 +11,3 @@ box = WorkSpace()
 
 Render(box)
 
-
-for i in range(10):
-    print(i)
-
