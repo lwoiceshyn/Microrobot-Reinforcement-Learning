@@ -20,19 +20,21 @@ from tensorflow.python.ops import variable_scope
 env = WorkSpace(dt=0.05)
 env.reset(preset='A')
 
-# setting up neural network agent
-# hyperparameters
-H = 10 # number of hidden layer neurons
-H2 = 10
-batch_size = 5 # every how many episodes to do a param update?
-learning_rate = 0.05
-gamma = 0.95 # discount factor for reward
+# Setting up the Neural Network Agent Representation
 
-D = 8 # input dimensionality
+# Hyperparameters
+H = 10 # Hidden Layer Neurons
+H2 = 10
+batch_size = 5 
+learning_rate = 0.05
+gamma = 0.95 # Discount Factor for Reward
+
+D = 8 # Input Dimensionality
 
 tf.reset_default_graph()
-#This defines the network as it goes from taking an observation of the environment to 
-#giving a probability of choosing the action of moving left or right.
+
+#This defines the network as it performs a mapping from from an observation of the environment to 
+#a probability of choosing the action of moving up, down, left, or right.
 observations = tf.placeholder(tf.float32, [None, D], name="input_x")
 W1 = tf.get_variable("W1", shape=[D,H], initializer=tf.contrib.layers.xavier_initializer())
 layer1 = tf.nn.relu(tf.matmul(observations, W1))
@@ -42,7 +44,7 @@ W3 = tf.get_variable("W3", shape=[H2,1], initializer=tf.contrib.layers.xavier_in
 score = tf.matmul(layer2, W3)
 probability = tf.nn.sigmoid(score)
 
-# From here, we define the parts of the network needed for learning a good policy
+# Components of network used to learn the reinforcement learning policy
 tvars = tf.trainable_variables()
 input_y = tf.placeholder(tf.float32, [None, 1], name="input_y")
 advantages = tf.placeholder(tf.float32, name="reward_signal")
@@ -54,7 +56,7 @@ loss = -tf.reduce_mean(loglik * advantages)
 newGrads = tf.gradients(loss, tvars)
 
 # Once we have collected a series of gradients from multiple episodes, we apply them.
-# We don't just apply gradeients after every episode in order to account for noise in the reward signal.
+# Gradients are not updated after every episode in order to account for noise in the reward signal.
 adam = tf.train.AdamOptimizer(learning_rate=learning_rate) # our optimizer
 W1Grad = tf.placeholder(tf.float32, name="batch_grad1") # Placeholder to send the final gradients through when we update
 W2Grad = tf.placeholder(tf.float32, name="batch_grad2")
@@ -63,7 +65,7 @@ updateGrads = adam.apply_gradients(zip(batchGrad, tvars))
 
 # Advantage Function
 def discount_rewards(r):
-    """ take 1D float array of rewards and compute discounted reward """
+    ''' Takes a 1D float array of rewards and computes discounted reward '''
     discounted_r = np.zeros_like(r)
     running_add = 0
     for t in reversed(range(0, r.size)):
@@ -79,15 +81,14 @@ total_episodes = 10000
 actions = []
 init = tf.global_variables_initializer()
 
-#Launch the graph
+#Launches the Tensorflow Graph
 with tf.Session() as sess:
     rendering = False # CHANGE BACK TO FALSE
     sess.run(init)
-    observation = env.reset(preset='A') # obtain an initial observation of the environment
+    observation = env.reset(preset='A') # Obtains an initial observation of the environment
 
     # Reset the gradient placeholder. We will collect gradients in 
     # gradBuffer until we are ready to update our policy network. 
-
     gradBuffer = sess.run(tvars)
     for ix, grad in enumerate(gradBuffer):
         gradBuffer[ix] = grad * 0
@@ -96,7 +97,6 @@ with tf.Session() as sess:
 
         # Rendering the environment slows things down, 
         # so let's only look at it once our agent is doing a good job.
-
         if running_reward/batch_size > 199 or rendering == True:
             env.render()
             rendering = True
@@ -113,7 +113,7 @@ with tf.Session() as sess:
         y = 1 if action == 0 else 0  # a "fake label"
         ys.append(y)
 
-        # step the environment and get new measurements
+        # Step the environment and get new measurements
         # print(action)
         observation, reward, done = env.step(action, dt=0.1)
         reward_sum += reward
