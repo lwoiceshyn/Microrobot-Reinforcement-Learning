@@ -12,7 +12,7 @@ The simulated micro-robot was trained to perform a cell sorting task, using stat
 * Tkinter
 * Tornado
 
-#References
+# References
 
 [1] Schaul, Tom, et al. "Prioritized experience replay." _arXiv preprint arXiv:1511.05952_ (2015).
 
