@@ -23,6 +23,9 @@ env = WorkSpace(dt=0.1)
 env.reset(preset='A')
 
 class Qnet():
+    '''
+    Neural Network for Approximating the Q Function in the Reinforcement Learning Algorithm
+    '''
     def __init__(self, name, D, H1, H2, H3):
         self.scalarInput = tf.placeholder(tf.float32, [None, D], name="input_x")
         W1 = tf.get_variable(name + "_W1", shape=[D,H1], initializer=tf.contrib.layers.xavier_initializer())
@@ -32,7 +35,7 @@ class Qnet():
         W3 = tf.get_variable(name + "_W3", shape=[H2,H3], initializer=tf.contrib.layers.xavier_initializer())
         self.layer3 = tf.nn.relu(tf.matmul(self.layer2, W3))
 
-        #We take the output from the final convolutional layer and split it into separate advantage and value streams.
+        #Takes the output from the final convolutional layer and split it into separate advantage and value streams.
         self.streamAC,self.streamVC = tf.split(self.layer3,2,1)
         self.streamA = tf.contrib.layers.flatten(self.streamAC)
         self.streamV = tf.contrib.layers.flatten(self.streamVC)
@@ -41,11 +44,11 @@ class Qnet():
         self.Advantage = tf.matmul(self.streamA,self.AW)
         self.Value = tf.matmul(self.streamV,self.VW)
 
-        #Then combine them together to get our final Q-values.
+        #Combines them together to get our final Q-values.
         self.Qout = self.Value + tf.subtract(self.Advantage,tf.reduce_mean(self.Advantage,reduction_indices=1,keep_dims=True))
         self.predict = tf.argmax(self.Qout,1)
 
-        #Below we obtain the loss by taking the sum of squares difference between the target and prediction Q values.
+        #Obtains the loss by taking the sum of squares difference between the target and prediction Q values.
         self.targetQ = tf.placeholder(shape=[None],dtype=tf.float32)
         self.actions = tf.placeholder(shape=[None],dtype=tf.int32)
         self.actions_onehot = tf.one_hot(self.actions,env.actions,dtype=tf.float32)
@@ -58,6 +61,9 @@ class Qnet():
         self.updateModel = self.trainer.minimize(self.loss)
 
 class experience_buffer():
+    '''
+    Stores experience in a replay buffer
+    '''
     def __init__(self, buffer_size = 50000):
         self.buffer = []
         self.buffer_size = buffer_size
@@ -82,27 +88,27 @@ def updateTarget(op_holder,sess):
         sess.run(op)
 
 
-# setting up neural network agent
-# hyperparameters
+# Neural Network Reinforcement Learning Agent
+# Hyperparameters
 D = 8
-H1 = 20 # number of hidden layer neurons
+H1 = 20 # Hidden Layer Neurons
 H2 = 16
 H3 = 10
-update_freq = 4 #How often to perform a training step.
+update_freq = 4 #How often to perform a training step
 y = .99 #Discount factor on the target Q-values
 startE = 1 #Starting chance of random action
 endE = 0.1 #Final chance of random action
-anneling_steps = 10000. #How many steps of training to reduce startE to endE.
-num_episodes = 10000 #How many episodes of game environment to train network with.
-pre_train_steps = 10000 #How many steps of random actions before training begins.
+anneling_steps = 10000. #How many steps of training to reduce startE to endE
+num_episodes = 10000 #How many episodes of game environment to train network with
+pre_train_steps = 10000 #How many steps of random actions before training begins
 max_epLength = 50 #The max allowed length of our episode.
-load_model = False #Whether to load a saved model.
-path = "./dqn" #The path to save our model to.
+load_model = False #Whether to load a saved model
+path = "./dqn" #The path to save our model to
 tau = 0.001 #Rate to update target network toward primary network
-batch_size = 1 # every how many episodes to do a param update?
-gamma = 0.75 # discount factor for reward
+batch_size = 1 # Every how many episodes to do a param update?
+gamma = 0.75 # Discount factor for reward
 
-D = 8 # input dimensionality
+D = 8 # Input dimensionality
 
 tf.reset_default_graph()
 
@@ -124,12 +130,12 @@ myBuffer = experience_buffer()
 e = startE
 stepDrop = (startE - endE)/anneling_steps
 
-#create lists to contain total rewards and steps per episode
+#Create lists to contain total rewards and steps per episode
 jList = []
 rList = []
 total_steps = 0
 
-#Make a path for our model to be saved in.
+#Make a path for our model to be saved in
 if not os.path.exists(path):
     os.makedirs(path)
 
@@ -139,17 +145,20 @@ with tf.Session() as sess:
         ckpt = tf.train.get_checkpoint_state(path)
         saver.restore(sess,ckpt.model_checkpoint_path)
     sess.run(init)
-    updateTarget(targetOps,sess) #Set the target network to be equal to the primary network.
+    updateTarget(targetOps,sess) #Set the target network to be equal to the primary network
     for i in range(num_episodes):
         episodeBuffer = experience_buffer()
+        
         #Reset environment and get first new observation
         s = env.reset('A')
         d = False
         rAll = 0
         j = 0
+        
         #The Q-Network
         while j < max_epLength: #If the agent takes longer than 200 moves to reach either of the blocks, end the trial.
             j+=1
+            
             #Choose an action by greedily (with e chance of random action) from the Q-network
             if np.random.rand(1) < e or total_steps < pre_train_steps:
                 a = np.random.randint(0,4)
@@ -171,7 +180,7 @@ with tf.Session() as sess:
                     end_multiplier = -(trainBatch[:,4] - 1)
                     doubleQ = Q2[range(batch_size),Q1]
                     targetQ = trainBatch[:,2] + (y*doubleQ * end_multiplier)
-                    #Update the network with our target values.
+                    #Update the network with our target values
                     _ = sess.run(mainQN.updateModel, \
                         feed_dict={mainQN.scalarInput:np.vstack(trainBatch[:,0]),mainQN.targetQ:targetQ, mainQN.actions:trainBatch[:,1]})
                     
@@ -186,7 +195,8 @@ with tf.Session() as sess:
         myBuffer.add(episodeBuffer.buffer)
         jList.append(j)
         rList.append(rAll)
-        #Periodically save the model. 
+        
+        #Periodically save the model
         if i % 1000 == 0:
             saver.save(sess,path+'/model-'+str(i)+'.cptk')
             print("Saved Model")
